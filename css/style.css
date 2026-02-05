@@ -1,196 +1,282 @@
-/* ==== Global ==== */
+/* =========================
+   GLOBAL – LUXE
+========================= */
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f5f5f2;
-    color: #333;
+    font-family: 'Playfair Display', 'Poppins', serif;
+    background: linear-gradient(180deg, #f7f4ef, #efe9df);
+    color: #2c2c2c;
     margin: 0;
     padding: 0;
 }
 
 a {
-    color: #4CAF50;
+    color: #8b6f47;
     text-decoration: none;
+    font-weight: 500;
 }
 
 a:hover {
-    text-decoration: underline;
+    color: #6f5737;
 }
 
-/* ==== Header ==== */
+/* =========================
+   HEADER
+========================= */
 header {
-    background-color: #a8d5ba;
-    padding: 15px 20px;
+    background: linear-gradient(135deg, #d6c7a1, #bfa77a);
+    padding: 25px 20px;
     text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
 header h1 {
     margin: 0;
-    font-size: 2em;
+    font-size: 2.4em;
+    letter-spacing: 2px;
+    color: #2c2c2c;
+    text-transform: uppercase;
 }
 
+/* =========================
+   NAVIGATION
+========================= */
 nav ul {
     list-style: none;
     padding: 0;
-    margin: 10px 0 0 0;
+    margin: 18px 0 0 0;
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 30px;
 }
 
 nav a {
-    font-weight: bold;
-    color: #333;
+    color: #2c2c2c;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 0.85em;
+    position: relative;
 }
 
-/* ==== Footer ==== */
-footer {
-    background-color: #a8d5ba;
-    text-align: center;
-    padding: 10px;
-    margin-top: 20px;
+nav a::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    width: 0;
+    height: 1px;
+    background-color: #2c2c2c;
+    transition: all 0.3s ease;
 }
 
-/* ==== Main ==== */
+nav a:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+/* =========================
+   MAIN
+========================= */
 main {
-    padding: 20px;
-    max-width: 900px;
+    padding: 50px 20px;
+    max-width: 1100px;
     margin: 0 auto;
 }
 
-/* ==== Formulaires ==== */
+/* =========================
+   SECTIONS
+========================= */
+section {
+    margin-bottom: 60px;
+}
+
+/* =========================
+   FORMULAIRES
+========================= */
 form {
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0px 3px 8px rgba(0,0,0,0.1);
-    max-width: 500px;
-    margin-bottom: 30px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 35px;
+    border-radius: 20px;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+    max-width: 520px;
+    margin: 0 auto 50px auto;
 }
 
 form label {
     display: block;
-    margin-top: 10px;
-    font-weight: bold;
+    margin-top: 18px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: #3a3a3a;
 }
 
-form input[type="text"],
-form input[type="password"],
-form input[type="datetime-local"],
+form input,
 form select,
 form textarea {
     width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-sizing: border-box;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-bottom: 1px solid #bfa77a;
+    background: transparent;
+    font-size: 0.95em;
+    transition: border 0.3s;
 }
 
 form textarea {
     resize: vertical;
 }
 
+form input:focus,
+form select:focus,
+form textarea:focus {
+    outline: none;
+    border-bottom: 1px solid #8b6f47;
+}
+
+/* Bouton luxe */
 form input[type="submit"] {
-    background-color: #76c893;
-    color: white;
-    padding: 10px 20px;
+    margin-top: 30px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #bfa77a, #8b6f47);
     border: none;
-    border-radius: 5px;
-    margin-top: 15px;
+    border-radius: 40px;
+    color: white;
+    font-size: 0.95em;
+    letter-spacing: 2px;
+    text-transform: uppercase;
     cursor: pointer;
-    font-size: 1em;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 form input[type="submit"]:hover {
-    background-color: #57a673;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
 }
 
-/* ==== Messages d'erreur / succès ==== */
+/* =========================
+   MESSAGES
+========================= */
 .form-error {
-    color: #c0392b;
-    margin-bottom: 10px;
+    background-color: #f6e8e6;
+    color: #8b3a3a;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 20px;
 }
 
 .form-success {
-    color: #27ae60;
-    margin-bottom: 10px;
+    background-color: #edf4ee;
+    color: #3f6f4f;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 20px;
 }
 
-/* ==== Tables ==== */
+/* =========================
+   TABLES
+========================= */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
-    background-color: #ffffff;
-    border-radius: 5px;
+    background: white;
+    border-radius: 15px;
     overflow: hidden;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.12);
 }
 
-table th, table td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+table th,
+table td {
+    padding: 18px;
+    font-size: 0.9em;
 }
 
 table th {
-    background-color: #76c893;
+    background-color: #bfa77a;
     color: white;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+table tr {
+    border-bottom: 1px solid #eee;
 }
 
 table tr:hover {
-    background-color: #f0f0f0;
+    background-color: #f5f1ea;
 }
 
-/* ==== Sections ==== */
-section {
-    margin-bottom: 30px;
-}
-
-/* ==== Responsive ==== */
-@media (max-width: 600px) {
-    nav ul {
-        flex-direction: column;
-    }
-
-    form {
-        width: 100%;
-    }
-}
-
-/* ==== Card Massages ==== */
+/* =========================
+   CARDS MASSAGES
+========================= */
 .massages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 35px;
+    margin-top: 40px;
 }
 
 .massage-card {
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-    width: 250px;
-    text-align: center;
+    background: white;
+    border-radius: 25px;
     overflow: hidden;
-    transition: transform 0.2s;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.18);
+    transition: transform 0.35s, box-shadow 0.35s;
 }
 
 .massage-card:hover {
-    transform: scale(1.05);
+    transform: translateY(-12px);
+    box-shadow: 0 35px 80px rgba(0,0,0,0.25);
 }
 
 .massage-card img {
     width: 100%;
-    height: 180px;
+    height: 200px;
     object-fit: cover;
 }
 
 .massage-card h3 {
-    margin: 10px 0 5px 0;
+    margin: 20px 0 8px 0;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: #2c2c2c;
 }
 
 .massage-card p {
-    margin-bottom: 10px;
-    color: #555;
+    padding: 0 20px 25px;
+    text-align: center;
+    color: #666;
+    font-size: 0.95em;
+}
+
+/* =========================
+   FOOTER
+========================= */
+footer {
+    background: linear-gradient(135deg, #d6c7a1, #bfa77a);
+    text-align: center;
+    padding: 20px;
+    margin-top: 60px;
+    color: #2c2c2c;
+    letter-spacing: 1px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 1.8em;
+    }
+
+    nav ul {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    form {
+        padding: 25px;
+    }
 }
