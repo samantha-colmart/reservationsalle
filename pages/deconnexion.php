@@ -1,5 +1,8 @@
 <?php
-session_start();
+include '../includes/config.php';
+
 session_destroy();
-header("Location: accueil.php");
-exit;
+header("Location: ../index.php");
+exit();
+
+?>

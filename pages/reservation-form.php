@@ -1,102 +1,49 @@
 <?php
 include '../includes/config.php';
 include '../includes/header.php';
+include '../includes/tools.php';
 
-if (!isset($_SESSION['user'])) {
-    header("Location: signin.php");
+if (!isset($_SESSION['id'])) {
+    header("Location: ../index.php");
     exit;
 }
 
-$error = "";
-
-// Définir les massages et leur durée
-$massages = [
-    "Massage relaxant" => 1,
-    "Massage tonifiant" => 1,
-    "Massage Shiatsu" => 1,
-    "Massage aux pierres chaudes" => 1,
-    "Massage aromathérapie" => 1,
-    "Massage détente luxe" => 2
-];
-
-// Pré-remplissage si date et heure depuis planning
-$prefillDate = $_GET['date'] ?? '';
-$prefillHour = $_GET['hour'] ?? '';
-
-$selectedMassage = $_POST['title'] ?? '';
-
-// Récupérer les événements pour la date choisie
-$reservedHours = [];
-if (!empty($_POST['date']) || $prefillDate) {
-    $dateKey = $_POST['date'] ?? $prefillDate;
-
-    $stmt = $pdo->prepare("SELECT start_date, end_date FROM event WHERE DATE(start_date)=?");
-    $stmt->execute([$dateKey]);
-    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    foreach ($events as $e) {
-        $s = (int)date('H', strtotime($e['start_date']));
-        $eH = (int)date('H', strtotime($e['end_date']));
-        for ($h=$s; $h<$eH; $h++) {
-            $reservedHours[] = $h;
-        }
-    }
+$creneau = null;
+if(isset($_GET['date'])){
+    $creneau = $_GET['date'];
 }
 
-// Déterminer les heures disponibles selon le massage sélectionné
-$availableHours = [];
-$duration = $massages[$selectedMassage] ?? 1;
-for ($h=9; $h<=18; $h++) {
-    $canBook = true;
-    for ($i=0; $i<$duration; $i++) {
-        if (in_array($h+$i, $reservedHours) || ($h+$i)>=19) {
-            $canBook = false;
-            break;
-        }
-    }
-    if ($canBook) $availableHours[] = $h;
+$jour_choisi = date("Y-m-d", strtotime($creneau));
+$heure_choisie = date("H:i", strtotime($creneau));
+$semaine = get_days();
+$heures = get_hours();
+
+$user = get_information_user($pdo, $_SESSION['id']);
+$massages = get_all_services($pdo);
+
+
+$event_id = null;
+$event = null;
+
+if (isset($_GET['id'])) {
+    $event_id = (int)$_GET['id'];
+    $event = event_by_id($pdo, $event_id);
 }
 
-// Traitement du formulaire (UNIQUEMENT au clic sur "Réserver")
-if (!empty($_POST) && isset($_POST['hour'])) {
-    $title = $_POST['title'] ?? '';
-    $hour = (int)($_POST['hour'] ?? 0);
-    $date = $_POST['date'] ?? '';
 
-    if (!$title || !isset($massages[$title])) {
-        $error = "Veuillez choisir un massage valide.";
-    } elseif (!$date || !$hour) {
-        $error = "Veuillez choisir une date et une heure valide.";
-    } else {
-        $duration = $massages[$title];
 
-        // Vérifier que le créneau est libre et ne dépasse pas 19h
-        $canBook = true;
-        for ($i=0; $i<$duration; $i++) {
-            if (in_array($hour+$i, $reservedHours) || ($hour+$i)>=19) {
-                $canBook = false;
-                break;
-            }
-        }
+$error = '';
 
-        if (!$canBook) {
-            $error = "Ce créneau n'est pas disponible.";
+if (!empty($_POST['step'])) {
+    $duration = null;
+    if (isset($_POST['service']) && $_POST['service'] !== 'libre') {
+        $duration = get_duration_by_service($massages, $_POST['service']);
+    }
+    if ($_POST['step'] === 'Réserver' || $_POST['step'] === 'Modifier') {
+        $result = event_process($pdo, $_POST, $_SESSION['id'], $duration, $event_id);
+        if ($result !== true) {
+            $error = $result;
         } else {
-            $start = new DateTime($date.' '.$hour.':00:00');
-            $end = clone $start;
-            $end->modify("+$duration hour");
-
-            $stmt = $pdo->prepare("
-                INSERT INTO event (event_title, start_date, end_date, creator_id)
-                VALUES (?, ?, ?, ?)
-            ");
-            $stmt->execute([
-                $title,
-                $start->format('Y-m-d H:i:s'),
-                $end->format('Y-m-d H:i:s'),
-                $_SESSION['user']['id']
-            ]);
-
             header("Location: schedule.php");
             exit;
         }
@@ -104,34 +51,110 @@ if (!empty($_POST) && isset($_POST['hour'])) {
 }
 ?>
 
-<h2>Nouvelle réservation</h2>
-<?php if($error) echo '<p class="form-error">'.$error.'</p>'; ?>
 
-<form method="post">
-    <label>Type de massage</label>
-    <select name="title" required>
-        <option value="">-- Choisir un massage --</option>
-        <?php foreach($massages as $name => $dur): ?>
-            <option value="<?= htmlspecialchars($name) ?>" <?= ($selectedMassage==$name) ? 'selected' : '' ?>>
-                <?= $name ?> (<?= $dur ?>h)
-            </option>
-        <?php endforeach; ?>
-    </select>
-
-    <label>Date</label>
-    <input type="date" name="date" value="<?= $_POST['date'] ?? $prefillDate ?>" required>
-
-    <label>Heure</label>
-    <select name="hour" required>
-        <option value="">-- Choisir un créneau --</option>
-        <?php foreach($availableHours as $h): ?>
-            <option value="<?= $h ?>" <?= ((isset($_POST['hour']) && $_POST['hour']==$h) || $prefillHour==$h) ? 'selected' : '' ?>>
-                <?= $h ?>h
-            </option>
-        <?php endforeach; ?>
-    </select>
-
-    <input type="submit" value="Réserver">
-</form>
+<section class="container-form">
+    <article class="auth-header">
+        <i class="auth-icon fa-solid fa-calendar-check"></i>
+        <?php
+        if ($event_id !== null) {
+            echo '<h1>Modifier la réservation</h1>';
+        } else {
+            echo '<h1>Formulaire de réservation</h1>';
+        }
+        ?>
+        <p class="subtitle">Utilisateur : <?php echo htmlspecialchars($user['username']); ?></p>
+    </article>
+    <?php
+    if (!empty($error)) {
+        echo '<p class="form-error">' . $error . '</p>';
+    }
+    ?>
+    <form method="post">
+        <label for="service">Choix de la prestation</label>
+        <select name="service" id="service">
+        <?php
+        $selected_service = '';
+        if ($event_id !== null && !empty($event)) {
+            $selected_service = $event[0]['event_title'];
+        } 
+        elseif (isset($_POST['service'])) {
+            $selected_service = $_POST['service'];
+        }
+        if ($selected_service === 'libre' || $selected_service === '') {
+            echo '<option value="libre" selected>Prestation libre</option>';
+        } else {
+            echo '<option value="libre">Prestation libre</option>';
+        }
+        foreach ($massages as $massage) {
+            if ($selected_service === $massage['name']) {
+                echo '<option value="' . htmlspecialchars($massage['name']) . '" selected>' . htmlspecialchars($massage['name']) . '</option>';
+            } else {
+                echo '<option value="' . htmlspecialchars($massage['name']) . '">' . htmlspecialchars($massage['name']) . '</option>';
+            }
+        }
+        ?>
+        </select>
+        <input type="submit" name="step" value="Choisir cette prestation">
+        <?php 
+        if($selected_service !== "libre" && $selected_service !== 'Prestation libre' && $selected_service !== ''){
+            echo '<p>Durée : ' . get_duration_by_service($massages, $selected_service) . ' h</p>';
+        }
+        ?>
+        <label for="debut">Heure de début</label>
+        <select name="debut" id="debut">
+            <?php
+            if($event_id !== null){
+                $heure_choisie = date("H:i", strtotime($event[0]['start_date']));
+            }
+            $hour = 2;
+            if($selected_service !== "libre" && $selected_service !== 'Prestation libre' && $selected_service !== ''){
+                $hour = (int)get_duration_by_service($massages, $selected_service)+1;
+            }
+             for ($i = 0; $i <= count($heures)-$hour; $i++){
+                if ($heures[$i] == $heure_choisie){ 
+                    echo '<option value="' . $heures[$i] . '" selected>' . $heures[$i] . '</option>'; 
+                } else { 
+                    echo '<option value="' . $heures[$i] . '">' . $heures[$i] . '</option>';
+                } 
+            }
+            ?>
+        </select>
+        <?php
+        if ($selected_service === 'libre' || $selected_service === 'Prestation libre' || $selected_service === ''){ 
+            echo '<label for="fin">Heure de fin</label> 
+            <select name="fin" id="fin">';
+            for ($i = 1; $i < count($heures); $i++) { 
+                if(strtotime($heures[$i]) === strtotime($heure_choisie . "+1 hour")){ 
+                    echo "<option value=".$heures[$i]." selected>".$heures[$i]."</option>"; 
+            } else{ 
+                echo "<option value=".$heures[$i].">".$heures[$i]."</option>"; 
+                } 
+            } 
+            echo '</select>'; 
+        }
+        ?>
+        <label for="jour">Date</label>
+        <?php
+        $date_value = $jour_choisi;
+        if ($event_id !== null) {
+            $date_value = date('Y-m-d', strtotime($event[0]['start_date']));
+        }
+        echo '<input type="date" name="jour" id="jour" value="' . $date_value .  '"min="' . date("Y-m-d") . '"max="' . $semaine[4] . '">';
+        ?>
+        <label for="description">Description</label>
+        <?php  
+        if ($event_id !== null) {
+                echo '<textarea name="description" id="description" maxlength="450">' . htmlspecialchars($event[0]['description']) . '</textarea>';
+        }else {
+            echo '<textarea name="description" id="description" maxlength="450"></textarea>';
+        }
+        if ($event_id !== null) {
+            echo '<input type="submit" name="step" value="Modifier">';
+        } else {
+            echo '<input type="submit" name="step" value="Réserver">';
+        }
+        ?>
+    </form>
+</section>
 
 <?php include '../includes/footer.php'; ?>

@@ -1,86 +1,74 @@
 <?php
 include '../includes/config.php';
 include '../includes/header.php';
+include '../includes/tools.php';
 
-if (!isset($_SESSION['user'])) {
+if (!isset($_SESSION['id'])) {
     header("Location: signin.php");
     exit;
 }
 
-/* Configuration du planning */
-$startHour = 9;  // Début des créneaux
-$endHour = 18;   // Dernier créneau possible pour 1h
-
-/* Semaine courante */
-$startOfWeek = new DateTime('monday this week');
-$endOfWeek = clone $startOfWeek;
-$endOfWeek->modify('+4 days');
-
-/* Récupération des événements de la semaine */
-$stmt = $pdo->prepare("
-    SELECT * 
-    FROM event 
-    WHERE start_date BETWEEN ? AND ?
-");
-$stmt->execute([
-    $startOfWeek->format('Y-m-d 00:00:00'),
-    $endOfWeek->format('Y-m-d 23:59:59')
-]);
-$events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-/* Indexer toutes les heures occupées */
-$eventMap = [];
+$semaine = get_days();
+$heures = get_hours();
+$delete = array_pop($heures);
+$debutSemaine = date('Y-m-d 00:00:00', strtotime(min($semaine)));
+$finSemaine = date('Y-m-d 23:59:59', strtotime(max($semaine)));
+$events = get_all($pdo, $debutSemaine, $finSemaine);
 foreach ($events as $event) {
-    $date = date('Y-m-d', strtotime($event['start_date']));
-    $startH = (int)date('H', strtotime($event['start_date']));
-    $endH = (int)date('H', strtotime($event['end_date']));
-
-    for ($h = $startH; $h < $endH; $h++) {
-        $eventMap[$date][$h] = true;
-    }
+    $event['start_ts'] = strtotime($event['start_date']);
+    $event['end_ts']   = strtotime($event['end_date']);
 }
+
 ?>
 
-<h2>Planning des massages</h2>
-
-<table border="1" cellpadding="8" style="border-collapse: collapse; text-align:center; width:100%; margin-top:15px;">
+<div class="table-container">
+  <table>
     <tr>
-        <th>Heure</th>
-        <?php for ($d = 0; $d < 5; $d++): 
-            $day = clone $startOfWeek;
-            $day->modify("+$d days");
-        ?>
-            <th><?= $day->format('l d/m') ?></th>
-        <?php endfor; ?>
+      <td>&nbsp;</td>
+      <?php
+      foreach ($semaine as $jour) {
+        $timestamp = strtotime($jour);
+        $formatter = new IntlDateFormatter('fr_FR',IntlDateFormatter::FULL,IntlDateFormatter::NONE);
+        echo '<td>' . $formatter->format($timestamp) . '</td>';
+      }
+      ?>
     </tr>
-
-    <?php for ($h = $startHour; $h <= $endHour; $h++): ?>
-        <tr>
-            <th><?= $h ?>h</th>
-            <?php for ($d = 0; $d < 5; $d++):
-                $day = clone $startOfWeek;
-                $day->modify("+$d days");
-                $dateKey = $day->format('Y-m-d');
-            ?>
-
-                <?php 
-                // Vérifier si le créneau est occupé
-                if (!empty($eventMap[$dateKey][$h])): ?>
-                    <td style="background:#e74c3c; color:#fff;">Indisponible</td>
-                <?php else: ?>
-                    <td style="background:#2ecc71; color:#fff;">
-                        <a href="reservation-form.php?date=<?= $dateKey ?>&hour=<?= $h ?>" style="color:#fff; text-decoration:none;">Libre</a>
-                    </td>
-                <?php endif; ?>
-
-            <?php endfor; ?>
-        </tr>
-    <?php endfor; ?>
-</table>
-
-<p style="margin-top:15px;">
-    <span style="background:#2ecc71; color:#fff; padding:2px 5px;">Libre</span> 
-    <span style="background:#e74c3c; color:#fff; padding:2px 5px;">Indisponible</span>
-</p>
+    <?php
+    foreach ($heures as $heure) {
+      echo '<tr>
+            <td>' . $heure . '</td>';
+      foreach ($semaine as $jour) {
+          $start_ts = strtotime($jour . ' ' . $heure);
+          $end_ts   = strtotime('+1 hour', $start_ts);
+          $event = event_taken_hour($events, $start_ts, $end_ts);
+          if ($event !== false) {
+            if($event['creator_id'] === $_SESSION['id']){
+              echo '<td class="slot my_slot">
+                      <a href="reservation_detail.php?id=' . $event['id'] . '">
+                        <p>' . htmlspecialchars($event['event_title']) . '</p>
+                        <h3>Vous</h3>
+                      </a>
+                    </td>';
+            } else{
+            echo '<td class="slot taken">
+                    <p>' . htmlspecialchars($event['event_title']) . '</p>
+                    <h3>' . htmlspecialchars($event['username']) . '</h3>
+                  </td>';
+            }
+          } elseif (date('N', $start_ts) >= 6 || strtotime("today") > strtotime($jour)){
+              echo '<td class="slot impossible"></td>';
+          } else {
+              echo '<td class="slot available">
+                  <a href="reservation-form.php?date=' . date('Y-m-d H:i:s', $start_ts) . '">
+                      Réserver
+                  </a>
+              </td>';
+          }
+      }
+      echo '</tr>';
+    }
+    ?>
+  </table>
+</div>
 
 <?php include '../includes/footer.php'; ?>

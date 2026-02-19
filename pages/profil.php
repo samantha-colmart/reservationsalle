@@ -1,89 +1,115 @@
+
 <?php
 include '../includes/config.php';
 include '../includes/header.php';
 include '../includes/tools.php';
 
-if (!isset($_SESSION['user'])) {
-    header("Location: signin.php");
+if (!isset($_SESSION['id'])) {
+    header("Location: ../index.php");
     exit;
 }
 
 $error = "";
-$success = "";
 
-/* =======================
-   Modification login / mot de passe
-======================= */
-if (!empty($_POST) && isset($_POST['update_profile'])) {
-    $username = trim($_POST['username']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-
-    if (username_exists($pdo, $username, $_SESSION['user']['id'])) {
-        $error = "Ce nom d'utilisateur est déjà utilisé.";
-    } elseif ($password && $password !== $confirm_password) {
-        $error = "Les mots de passe ne correspondent pas.";
+if (!empty($_POST)) {
+    $result = profile_modification_process($pdo, $_POST);
+    if ($result === true) {
+        header("Location: profil.php");
+        exit;
     } else {
-        $hash = $password ? password_hash($password, PASSWORD_DEFAULT) : $_SESSION['user']['password'];
-
-        $stmt = $pdo->prepare("UPDATE user SET username=?, password=? WHERE id=?");
-        $stmt->execute([$username, $hash, $_SESSION['user']['id']]);
-        $_SESSION['user']['username'] = $username;
-        $success = "Profil mis à jour avec succès !";
+        $error = $result;
     }
 }
 
-/* =======================
-   Récupérer les réservations de l’utilisateur
-======================= */
-$stmt = $pdo->prepare("SELECT * FROM event WHERE creator_id=? ORDER BY start_date ASC");
-$stmt->execute([$_SESSION['user']['id']]);
-$reservations = $stmt->fetchAll();
+
+$error_suppression = "";
+// Suppression message
+if (!empty($_POST['delete'])) {
+    $delete = (int)$_POST['delete'];
+    if (!event_deletion($pdo, $delete, $_SESSION['id'])) {
+        $error_suppression = "Impossible de supprimer ce message.";
+    } else {
+        header("Location: profil.php");
+        exit;
+    }
+}
+
+$information = get_information_user($pdo, $_SESSION['id']);
+
+$semaine = get_days();
+$heures = get_hours();
+$debutSemaine = date('Y-m-d 00:00:00', strtotime(min($semaine)));
+$finSemaine = date('Y-m-d 23:59:59', strtotime(max($semaine)));
+$events = event_by_user_in_week($pdo, $_SESSION['id'], $debutSemaine, $finSemaine);
+
 ?>
 
-<h2>Profil</h2>
-
+<section class="container-form">
+    <article class="auth-header">
+        <i class="auth-icon fa-solid fa-user-pen"></i>
+        <h1 class="title-profile">Mon Profil</h1>
+        <p class="subtitle">Gérez vos informations personnelles</p>
+    </article>
+    <?php 
+    if (!empty($error)){
+        echo '<p class="form-error">' . $error .  '</p>';
+    }
+    ?>
+    <form action="" method="POST">
+        <label for="username">Username</label>
+        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($information['username']); ?>">
+        <label for="password">Mot de passe</label>
+        <input type="password" name="password" id="password" placeholder="Nouveau mot de passe">
+        <label for="confirm_password">Confirmation du mot de passe</label>
+        <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirmation du mot de passe">
+        <input type="submit" value="Modifier">
+    </form>
+</section>
 <?php
-if ($error) echo '<p class="form-error">'.$error.'</p>';
-if ($success) echo '<p class="form-success">'.$success.'</p>';
+if(!empty($events)){
+    echo'  <section>
+    <h2>Mes Rendez-vous :</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <td>Début</td>
+                    <td>Fin</td>
+                    <td>Voir le détail</td>
+                    <td>Modifier le RDV</td>
+                    <td>Annuler</td>
+                </tr>
+            </thead>
+            <tbody>';
+                foreach ($events as $event) {
+                    echo '<tr>
+                        <td>' . htmlspecialchars(date("d/m/Y", strtotime($event['start_date']))) . ' à ' . htmlspecialchars(date("H:i", strtotime($event['start_date']))) . '</td>
+                        <td>' . htmlspecialchars(date("d/m/Y", strtotime($event['end_date']))) . ' à ' . htmlspecialchars(date("H:i", strtotime($event['end_date']))) . '</td>
+                        <td>
+                            <a href="reservation_detail.php?id=' . $event['id'] . '">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="reservation-form.php?id=' . $event['id'] . '">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                        </td>
+                        <td>
+                            <form method="POST">
+                                <input type="hidden" name="delete" value="' . htmlspecialchars($event['id']) . '">
+                                <button type="submit" class="trash">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>';
+                }
+            echo '</tbody>
+        </table>
+    </div>
+</section>';
+}
 ?>
-
-<!-- Formulaire modification login/mot de passe -->
-<h3>Modifier mon profil</h3>
-<form method="post">
-    <input type="hidden" name="update_profile">
-    <label>Login</label>
-    <input type="text" name="username" value="<?= htmlspecialchars($_SESSION['user']['username']) ?>" required>
-    <label>Nouveau mot de passe</label>
-    <input type="password" name="password" placeholder="Laisser vide pour garder l'ancien">
-    <label>Confirmer mot de passe</label>
-    <input type="password" name="confirm_password">
-    <input type="submit" value="Modifier">
-</form>
-
-<hr>
-
-<h3>Mes réservations</h3>
-
-<?php if (empty($reservations)): ?>
-    <p>Vous n'avez encore réservé aucun massage.</p>
-<?php else: ?>
-    <table border="1" cellpadding="5" style="border-collapse: collapse; width:100%; text-align:center;">
-        <tr>
-            <th>Début</th>
-            <th>Fin</th>
-            <th>Détails / Modifier</th>
-        </tr>
-        <?php foreach($reservations as $res): ?>
-            <tr>
-                <td><?= date('d/m/Y H:i', strtotime($res['start_date'])) ?></td>
-                <td><?= date('H:i', strtotime($res['end_date'])) ?></td>
-                <td>
-                    <a href="reservation_detail.php?id=<?= $res['id'] ?>">Voir / Modifier / Annuler</a>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    </table>
-<?php endif; ?>
 
 <?php include '../includes/footer.php'; ?>
